@@ -1,4 +1,4 @@
-from tool import Tool
+from tools.tool import Tool
 from game_object import GameObject
 from helpers import *
 
@@ -14,7 +14,7 @@ class FillTool(Tool):
         gridPos = self.level_creator.grid.get_position((node[0], node[1]))
         current_tile = self.level_creator.current_tile
 
-        part = GameObject(self.game, gridPos[0],gridPos[1], current_tile.spritesheet_name,current_tile.animator.rows, current_tile.animator.columns, collisionGroups=[self.level_creator.current_group], layer=self.level_creator.current_layer, current_row=current_tile.current_row, current_column=current_tile.current_column)
+        part = GameObject(self.game, gridPos[0],gridPos[1], current_tile.spritesheet_name,current_tile.animator.rows, current_tile.animator.columns, collision_groups=[self.level_creator.current_group], layer=self.level_creator.current_layer, current_row=current_tile.current_row, current_column=current_tile.current_column)
         self.level_creator.level[node] = part
         self.closed.append(node)
 
@@ -29,10 +29,15 @@ class FillTool(Tool):
         for neighbor in neighbors:
             self.check_neighbors(neighbor)
         
+        
 
-    def Activate(self, gridIndex):
+    def activate(self, gridIndex):
         start = gridIndex + (self.level_creator.current_layer,)
         self.closed = list(self.level_creator.level.keys())
 
         if start not in self.closed:
             self.check_neighbors(start)
+            return True
+        
+    def shortcut_activate(self):
+        self.level_creator.set_tool("fill")

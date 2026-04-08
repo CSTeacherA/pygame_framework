@@ -3,7 +3,7 @@ from animator import Animator
 
 
 class GameObject(pygame.sprite.Sprite):
-    def __init__(self, game, x = 0, y = 0, spritesheet=None, rows=1, columns=1, collisionGroups=[], layer = 0, current_row=0,current_column=0):
+    def __init__(self, game, x = 0, y = 0, spritesheet=None, rows=1, columns=1, collision_groups=[], layer = 0, current_row=0,current_column=0):
         super().__init__()
         self.layer = layer
         self.spritesheet = spritesheet
@@ -12,8 +12,8 @@ class GameObject(pygame.sprite.Sprite):
         self.game = game
         
 
-        self.collisionGroups = collisionGroups
-        for group in collisionGroups:
+        self.collision_groups = collision_groups
+        for group in collision_groups:
             game.add_to_collision_group(group, self) # add self to all marked groups
 
         self.image = None

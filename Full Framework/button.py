@@ -6,8 +6,8 @@ from physics_object import PhysicsObject
 class Button(GameObject):
 
     
-    def __init__(self, game, x = 0, y = 0, spritesheet=None, rows=1, columns=1, collisionGroups=[], callback=None, layer = 10):
-        super().__init__(game, x, y, spritesheet, rows, columns, collisionGroups, layer=10)    
+    def __init__(self, game, x = 0, y = 0, spritesheet=None, rows=1, columns=1, collision_groups=[], callback=None, layer = 10):
+        super().__init__(game, x, y, spritesheet, rows, columns, collision_groups, layer=10)    
         self.callback = callback
         self.game.subscribe_event(self)
         self.active = True

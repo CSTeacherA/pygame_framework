@@ -4,6 +4,8 @@ class Grid:
         self.cell_size = cellSize
 
     def get_index(self, screenPos):
+        if type(screenPos) is not tuple:
+            return (0,0)
         x = (round(screenPos[0]) // self.cell_size)
         y = (round(screenPos[1]) // self.cell_size)
         return (x,y)

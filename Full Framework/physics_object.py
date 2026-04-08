@@ -7,8 +7,8 @@ SURFACE_FRICTION_COEFF = .01  # sliding friction
 
 
 class PhysicsObject(GameObject):
-    def __init__(self,game, x, y, spritesheet, rows=1, columns =1, collisionGroups = [],layer = 1):
-        super().__init__(game, x, y, spritesheet,rows, columns, collisionGroups, layer)
+    def __init__(self,game, x, y, spritesheet, rows=1, columns =1, collision_groups = [],layer = 1):
+        super().__init__(game, x, y, spritesheet,rows, columns, collision_groups, layer)
         
         self.velocity = pygame.Vector2(0, 0)
         self.acceleration = pygame.Vector2(0, 0)
@@ -17,9 +17,9 @@ class PhysicsObject(GameObject):
         self.grounded = False
 
         self.targetGroups = []
-        for group in collisionGroups:
-            if group in self.game.collides_with.keys():
-                self.targetGroups += self.game.collides_with[group]
+        for group in collision_groups:
+            if group in self.game.collision_matrix.keys():
+                self.targetGroups += self.game.collision_matrix[group]
             
     # ------------------------
     # Force System

@@ -1,6 +1,6 @@
 import pygame
 import os
-
+from helpers import *
 class SpriteLoader:
     def __init__(self, folder="sprites"):
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -8,7 +8,8 @@ class SpriteLoader:
 
         # self.folder = folder
         self.sprites = {}
-        self.load_sprites(self.folder)
+        self.sprites = load_folder(self.folder, ".png", True)
+        # self.load_sprites(self.folder)
 
 
     def create_sprite(self, name, surface):

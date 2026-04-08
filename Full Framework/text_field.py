@@ -6,8 +6,8 @@ from physics_object import PhysicsObject
 class TextField(GameObject):
 
 
-    def __init__(self, game, x = 0, y = 0, spritesheet=None, rows=1, columns=1, collisionGroups=[], callback=None, FontSize=10, layer = 10):
-        super().__init__(game, x, y, None,rows, columns, collisionGroups, layer=10)
+    def __init__(self, game, x = 0, y = 0, spritesheet=None, rows=1, columns=1, collision_groups=[], callback=None, FontSize=10, layer = 10):
+        super().__init__(game, x, y, None,rows, columns, collision_groups, layer=10)
         self.game = game
         self.game.add(self, layer)
         self.x = x

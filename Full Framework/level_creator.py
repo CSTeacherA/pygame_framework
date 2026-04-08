@@ -4,27 +4,35 @@ from game_object import GameObject
 from physics_object import PhysicsObject
 from text_field import TextField
 from sprite_picker import SpritePicker
-from draw_tool import DrawTool
+from tools.draw_tool import DrawTool
 import json
 from helpers import *
-from eraser import Eraser
+from tools.eraser import Eraser
 from empty_object import EmptyObject
 from button import Button
-from fill_tool import FillTool
+from tools.fill_tool import FillTool
+from tools.load import Load_Tool
+from tools.toggle_palette import Toggle_Palette
+from tools.toggle_search import Toggle_Search
 from ladder import Ladder
+import copy
 
+from tools.save import Save_Tool
 
 
 
 
 class LevelCreator(GameObject):
-    COMMANDS = ["load", "setlayer", "setgroup", "help", "settool", "tileset", "setlevel", "setobject"]
+    COMMANDS = ["load", "setlayer", "setgroup", "help", "settool", "tileset", "setlevel", "setobject", "undo", "redo"]
     TOOLS = {"draw": DrawTool, "eraser":Eraser, "fill":FillTool}
 
-    def __init__(self, game, x = 0, y = 0, spritesheet=None, rows=1, columns=1, collisionGroups=[], layer=0, levels=None):
-        super().__init__(game, x, y, spritesheet,rows, columns, collisionGroups, layer=layer)
-        self.grid = Grid(16)
+    def __init__(self, game, x = 0, y = 0, spritesheet=None, rows=1, columns=1, collision_groups=[], layer=0, levels=None):
+        super().__init__(game, x, y, spritesheet,rows, columns, collision_groups, layer=layer)
+        self.grid = self.game.grid
         self.level = {}
+        self.undo_stack = []
+        self.redo_stack = []
+        self.history_index = 0
         
         self.game.levels = levels
 
@@ -35,8 +43,7 @@ class LevelCreator(GameObject):
         self.tile_set = "agoria"
         self.object_type = "gameobject"
 
-        self.level_folder = "Levels/"
-        self.current_level = "Level02.json"
+        self.current_level = "Level02"
         self.current_group_index = 0
         self.collision_group_names = list(self.game.collision_groups.keys())
 
@@ -44,6 +51,14 @@ class LevelCreator(GameObject):
         self.game_object_names = list(self.game.ALL_OBJECTS.keys())
 
         TOOL_BAR = [
+            {"image": "spacer", "callback": None},
+            {"image": "spacer", "callback": None},
+
+            {"image": "undo_icon", "callback": self.call_undo},
+            {"image": "redo_icon", "callback": self.call_redo},
+            # {"image": "spacer", "callback": None},
+            
+
             {"image": "spacer", "callback": None},
             {"image": "spacer", "callback": None},
             {"image": "trash_icon", "callback": self.clear_level},
@@ -97,12 +112,12 @@ class LevelCreator(GameObject):
         end = 0
         for i, tool in enumerate(TOOL_BAR):
             image = game.sprite_loader[tool["image"]]
-            button = Button(game, game.screen.get_width() - (self.grid.cell_size * i) - (self.grid.cell_size / 2), self.grid.cell_size / 2, image, callback=tool["callback"],collisionGroups = ["LevelCreator"])
+            button = Button(game, game.screen.get_width() - (self.grid.cell_size * i) - (self.grid.cell_size / 2), self.grid.cell_size / 2, image, callback=tool["callback"],collision_groups = ["LevelCreator"])
             end = i + 1
 
         print(range(end, game.screen.get_width() // self.grid.cell_size, 1))
         for i in range(end, game.screen.get_width() // self.grid.cell_size, 1):
-            button = Button(game, game.screen.get_width() - (self.grid.cell_size * i) - (self.grid.cell_size / 2), self.grid.cell_size / 2, "spacer", callback=None, collisionGroups = ["LevelCreator"])
+            button = Button(game, game.screen.get_width() - (self.grid.cell_size * i) - (self.grid.cell_size / 2), self.grid.cell_size / 2, "spacer", callback=None, collision_groups = ["LevelCreator"])
 
         image = pygame.Surface((self.grid.cell_size,self.grid.cell_size))
         image.fill((100, 100, 100))
@@ -110,75 +125,114 @@ class LevelCreator(GameObject):
         if not self.game.sprite_loader.get("default_block"):
             self.game.sprite_loader.create_sprite("default_block", image)
 
-        self.current_tile = EmptyObject(self.game,0,0, "default_block", layer=self.current_layer, collisionGroups=self.current_group)
+        self.current_tile = EmptyObject(self.game,0,0, "default_block", layer=self.current_layer, collision_groups=self.current_group)
 
         self.search_bar = None
         self.picker = None
 
         self.lastRemoved = pygame.time.get_ticks()
-        self.keysup = {
-            pygame.K_p:True,
-            "mouse0":True
-            }
+        self.save_action()
+
+        self.shortcut_tools = [Save_Tool(game, self, "ctrl+s"),
+                             Load_Tool(game, self, "ctrl+l"),
+                             Toggle_Palette(game, self, "ctrl+p"),
+                             Toggle_Search(game, self, "ctrl+enter")]
+        self.prev_press = ""
+
+    
+    def update(self, dt):
+        action_complete = False
+        mouse = pygame.mouse.get_pressed()
+        mousePos = pygame.mouse.get_pos()
+        gridIndex = self.grid.get_index(mousePos)
+        gridPos = self.grid.get_position(gridIndex)
+
+
+        
+        if mouse[0] and mousePos[1] > 16 and  self.picker == None and pygame.time.get_ticks() - self.lastRemoved > 100:
+            if self.current_tool.activate(gridIndex) and not action_complete:
+                self.save_action()
+                action_complete = True
+
+        all_up = True
+        for tool in self.shortcut_tools:
+            if is_combo_pressed(tool.shortcut): 
+                all_up = False
+                if self.prev_press != tool.shortcut and not action_complete:
+                    print("combo pressed")
+                    tool.shortcut_activate(gridIndex)
+                    self.prev_press = tool.shortcut
+                    action_complete = True
+        if all_up:
+            self.prev_press = ""
+
+        self.rect.centerx = gridPos[0]
+        self.rect.centery = gridPos[1]
+
+    def call_undo(self):
+        self.on_text_return("undo")
+    def undo(self):
+        # """Revert to previous state."""
+
+        # # move current state to redo stack
+        # self.redo_stack.append(self.undo_stack.pop())
+
+        # return safe_copy(self.undo_stack[-1])
+        if len(self.undo_stack) <= 1:
+            print("nothing to undo")
+            return
+        
+        # json_level = self.undo_stack.pop() # get the last change 
+        self.redo_stack.append(self.undo_stack.pop())
+
+        # if json_level == self.game.save_manager.dictionary_to_json(self.level): # if this is the same as the current state update again
+        #     self.redo_stack.append(json_level)
+        #     json_level = self.undo_stack.pop() # remove the current state
+        
+        self.clear_level()
+        self.level = self.game.save_manager.json_to_dictionary(self.game, self.undo_stack[-1]) # find last level change
+        
+        # self.redo_stack.append(json_level)
+        if len(self.redo_stack) > 100:
+            self.redo_stack.pop(0) # remove oldest
+            
+
+    def call_redo(self):
+        self.on_text_return("redo")
+    def redo(self):
+        if len(self.redo_stack) <= 1:
+            print("no actions to redo")
+            return
+        
+        state = self.redo_stack.pop()
+        self.undo_stack.append(state)
+
+        # json_level = self.redo_stack.pop()
+        # if json_level == self.game.save_manager.dictionary_to_json(self.level): # if this is the same as the current state update again
+        #         self.undo_stack.append(json_level)
+        #         json_level = self.redo_stack.pop() # remove the current state
+
+        self.clear_level()
+        self.level = self.game.save_manager.json_to_dictionary(self.game, self.redo_stack[-1]) # find last level change
+        
+            
 
     def on_new_tile(self, tile):
         self.current_tile = tile
         self.picker = None
         self.lastRemoved = pygame.time.get_ticks()
 
-    def update(self, dt):
-        keys = pygame.key.get_pressed()
-        mouse = pygame.mouse.get_pressed()
-        mousePos = pygame.mouse.get_pos()
-        gridIndex = self.grid.get_index(mousePos)       
-        gridPos = self.grid.get_position(gridIndex)
-
-
-        
-        if mouse[0] and mousePos[1] > 16 and  self.picker == None and pygame.time.get_ticks() - self.lastRemoved > 100:
-            self.current_tool.Activate(gridIndex)
-  
-
-        if keys[pygame.K_p] and self.keysup[pygame.K_p] == True and keys[pygame.K_LCTRL]:
-            self.keysup[pygame.K_p] = False
-            self.toggle_palette()
-        elif not keys[pygame.K_p]:
-            self.keysup[pygame.K_p] = True
-
-        if keys[pygame.K_l] and keys[pygame.K_LCTRL] and self.keysup[pygame.K_l]:
-            self.keysup[pygame.K_l] = False
-            self.load()
-        elif not keys[pygame.K_l]:
-            self.keysup[pygame.K_l] = True
-
-        if keys[pygame.K_s] and keys[pygame.K_LCTRL] and self.keysup[pygame.K_s]:
-            
-            self.keysup[pygame.K_s] = False
-            self.save()
-        elif not keys[pygame.K_s]:
-            self.keysup[pygame.K_s] = True
-
-        if keys[pygame.K_RETURN] and self.keysup[pygame.K_RETURN] and self.search_bar == None and self.search_bar == None and pygame.time.get_ticks() - self.lastRemoved > 100:
-            print("pressed Enter.. ")
-            self.keysup[pygame.K_RETURN] = False
-
-            self.search_bar = TextField(self.game, self.game.screen.get_width() / 2, 24, callback=self.on_text_return)
-        elif not keys[pygame.K_RETURN]:
-            self.keysup[pygame.K_RETURN] = True
-
-        self.rect.centerx = gridPos[0]
-        self.rect.centery = gridPos[1]
-
 
     def clear_level(self):
         self.game.clear_groups(["LevelCreator"])
         self.level = {}
+
     def save(self):
         print("saving...")
-        self.game.save_manager.save_level(self.level, self.level_folder +  self.current_level)
+        self.game.save_manager.save_level(self.level, self.current_level)
     def load(self):
         print("Loading...")
-        self.level = self.game.save_manager.load_level(self.game, self.level_folder +  self.current_level)
+        self.level = self.game.save_manager.load_level(self.game, self.current_level)
 
     def decrease_obj(self):
         self.current_object_index -= 1
@@ -263,6 +317,13 @@ class LevelCreator(GameObject):
             self.current_tool = self.TOOLS[name](self.game, self)
         else:
             print("must select tool:", self.TOOLS, "not", name)
+    def toggle_search(self):
+        if self.search_bar == None:
+            self.search_bar = TextField(self.game, self.game.screen.get_width() / 2, 24, callback=self.on_text_return)
+        else:
+            self.search_bar.kill()
+            self.search_bar = None
+            self.lastRemoved = pygame.time.get_ticks()
 
     def toggle_palette(self):
         
@@ -294,19 +355,26 @@ class LevelCreator(GameObject):
             action[1] = splitText[1].lower()
 
         return action
+    
+    def save_action(self):
+        print("saving action")
+        self.undo_stack.append(self.game.save_manager.dictionary_to_json(self.level))
+        if len(self.undo_stack) > 100:
+            self.undo_stack.pop(0) # remove oldest
+        self.redo_stack.clear()
+
     def on_text_return(self, text):
-        if self.search_bar == None:
-            return
-        
-        self.search_bar.kill()
-        self.search_bar = None
-        self.lastRemoved = pygame.time.get_ticks()
+        if self.search_bar != None:
+            self.search_bar.kill()
+            self.search_bar = None
+            self.lastRemoved = pygame.time.get_ticks()
+
         action = self.parse_command(text)
 
         if action[0] == "load":
             if self.game.sprite_loader.get(action[1]):
                 # self.current_tile = action[1]
-                self.current_tile = EmptyObject(self.game,0,0, action[1], layer=self.current_layer, collisionGroups=self.current_group)
+                self.current_tile = EmptyObject(self.game,0,0, action[1], layer=self.current_layer, collision_groups=self.current_group)
                 print("sprite " + action[1] + " found!!!")
             else:
                 print("sprite " + action[1] + " not found")
@@ -333,10 +401,20 @@ class LevelCreator(GameObject):
                     print(image)
         elif action[0] == "setobject":
             self.set_object(action[0])
+        elif action[0] == "undo":
+            self.undo()
+        elif action[0] == "redo":
+            self.redo()
+            
         else:
             print("Command", action[0], "not found. type help to list all commands")
 
         self.game.screen.fill((30, 30, 30))
+
+        if action[0] != "undo" and action[0] != "redo": 
+            self.save_action()
+            
+
 
     
 

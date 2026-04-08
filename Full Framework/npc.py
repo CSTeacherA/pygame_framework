@@ -1,15 +1,40 @@
 import pygame
-from game_object import GameObject
+from physics_object import PhysicsObject
 from player import Player
 from helpers import *
+from game_object import GameObject
+class NPC(PhysicsObject):
+    def __init__(self, game, x, y, image, rows = 1,columns =1, layer=1):
+        super().__init__(game, x, y, image, rows, columns, ["NPC"])
+        self.direction = [1,0]
+        self.is_right = True
+        self.speed = 100
+        
+    
+    def check_ledge(self, right = 1):
+        grid_index = self.game.grid.get_index(self.rect.x, self.rect.y) + (self.layer,)
+        down_step = (grid_index[0] + right, grid_index[1] - 1, grid_index[2])
+        
+        obj = self.game.level_data[down_step]
+        if obj and isinstance(obj, GameObject):
+            for group in self.collision_groups:
+                if self.game.collides_with(group, obj.collision_groups):
+                    
+                    return True
+        return False
 
-class NPC(GameObject):
-    def __init__(self, game, x = 0, y = 0, spritesheet=None, rows=1, columns=1, collisionGroups=[], layer = 0, current_row=0,current_column=0):
-        super().__init__(game, x, y,  spritesheet=spritesheet,rows=rows, columns=columns, collisionGroups=collisionGroups, layer=layer, current_row=current_row, current_column=current_column)
+    def update(self, dt):
+        dx = 0
+        dy = 0
+
+        dx += self.direction[0] * self.speed * dt
+        if self.direction[0] > 0:
+            self.is_right = True
+        elif self.direction[0] < 0:
+            self.is_right = False
+        else:
+            dx = 0
 
 
         
-       
-    def update(self, dt):
-        pass
     

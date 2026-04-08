@@ -7,16 +7,21 @@ from player import Player
 from ladder import Ladder
 from goal import Goal
 from spawn_player import SpawnPlayer
+from grid import Grid
+
+
 class Game:
     # all objects types with string names for saving/using object data
     ALL_OBJECTS = {"gameobject": GameObject, "ladder": Ladder, "player": Player, "goal":Goal, "spawnplayer":SpawnPlayer}
 
-    def __init__(self,name=["[Game Name]"], width=800, height=600, levels=None):
+    def __init__(self,name=["[Game Name]"], width=800, height=600, levels=None, grid_size = 16):
         pygame.init()
-        
+        self.grid = Grid(grid_size)
+
         self.system_font = pygame.font.SysFont('Arial', 15, bold=False, italic=False)
 
-        self.screen = pygame.display.set_mode((width, height))
+        # restrict screen size to match grid size
+        self.screen = pygame.display.set_mode(((width // grid_size) * grid_size, (height // grid_size) * grid_size))
         pygame.display.set_caption(name)
 
         self.levels = levels
@@ -36,7 +41,7 @@ class Game:
             "Triggers": pygame.sprite.LayeredUpdates()
         } 
 
-        self.collides_with = {
+        self.collision_matrix = {
             "Player":["Bounds", "PhysicsObject", "Default"],
             "PhysicsObject":["Player", "PhysicsObject"],
             "Triggers":["Player"]
@@ -50,6 +55,13 @@ class Game:
         self.level_data = {}
         if self.levels:
             self.level_data = self.save_manager.load_level(self, self.levels[self.current_level])
+
+    def collides_with(self, group, target_groups):
+        for target_group in target_groups:
+            if target_group in self.collision_matrix[group]:
+                return True
+        return False
+
 
     def add(self, obj, layer):
         self.all_sprites.add(obj, layer=layer)

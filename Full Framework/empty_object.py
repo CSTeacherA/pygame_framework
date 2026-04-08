@@ -3,7 +3,7 @@ from animator import Animator
 from game_object import GameObject
 
 class EmptyObject(GameObject):
-    def __init__(self, game, x = 0, y = 0, spritesheet=None, rows=1, columns=1, collisionGroups=[], layer = 0, currow=0,curcolumn=0):
+    def __init__(self, game, x = 0, y = 0, spritesheet=None, rows=1, columns=1, collision_groups=[], layer = 0, currow=0,curcolumn=0):
         self.game = game
         self.spritesheet = spritesheet
         self.current_row = currow

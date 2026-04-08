@@ -3,8 +3,8 @@ from animator import Animator
 from game_object import GameObject
 from empty_object import EmptyObject
 class SpritePicker(GameObject):
-    def __init__(self, game, x = 0, y = 0, spritesheet=None, rows=1, columns=1, collisionGroups=[], layer = 0, grid = None, callback=None):
-        super().__init__(game, x, y, None, rows, columns, collisionGroups, layer=10)
+    def __init__(self, game, x = 0, y = 0, spritesheet=None, rows=1, columns=1, collision_groups=[], layer = 0, grid = None, callback=None):
+        super().__init__(game, x, y, None, rows, columns, collision_groups, layer=10)
 
         self.spritesheet_name  = "default"
         if type(spritesheet) is str:
