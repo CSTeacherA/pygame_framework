@@ -55,6 +55,13 @@ def get_most_recent_file(folder_path):
     most_recent = max(files, key=os.path.getmtime)
     return most_recent
 
+def get_target_groups(game, collision_groups):
+    targetGroups = []
+    for group in collision_groups:
+        if group in game.collision_matrix.keys():
+            targetGroups += game.collision_matrix[group]
+    return targetGroups
+
 def get_oldest_file(folder_path):
     # Get full paths for all files in the folder
     files = [
