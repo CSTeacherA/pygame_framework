@@ -106,7 +106,7 @@ class SaveManager():
         data_to_save = self.dictionary_to_json(level_dict)
         
         now = str(datetime.now())
-        
+        now = now.replace(":","_")
         file_dir = os.path.join(folder_dir, level_name + "_" + now)
         with open(file_dir, "w") as f:
             json.dump(data_to_save, f, indent=4)
